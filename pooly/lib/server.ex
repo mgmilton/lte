@@ -54,6 +54,17 @@ defmodule Pooly.Server do
     {:noreply, %{state | worker_sup: worker_sup, workers: workers}}
   end
 
+  def handle_info({:DOWN, ref, _, _, _}, state = %{monitors: monitors, workers: workers}) do
+    case :ets.match(monitors, {:"$1", ref}) do
+      [[pid]] ->
+        true = :ets.delete(monitors, pid)
+        new_state = %{state | workers: [pid|workers]}
+        {:noreply, new_state}
+      [[]] ->
+        {:noreply, state}
+    end
+  end 
+
   def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
     case workers do
       [worker|rest] ->
