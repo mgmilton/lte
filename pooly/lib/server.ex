@@ -31,6 +31,12 @@ defmodule Pooly.Server do
     init(pool_config, %State{sup: sup, monitors: monitors})
   end
 
+  def init([sup, pool_config]) when is_pid(sup) do
+    Process.flag(:trap_exit, true)
+    monitors = :ets.new(:monitors, [:private])
+    init(pool_config, %State{sup: sup, monitors: monitors})
+  end
+
   def init([{:mfa, mfa}|rest], state) do
     init(rest, %{state | mfa: mfa})
   end
@@ -63,7 +69,19 @@ defmodule Pooly.Server do
       [[]] ->
         {:noreply, state}
     end
-  end 
+  end
+
+  def handle_info({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, worker_sup: worker_sup}) do
+    case :ets.lookup(monitors, pid) do
+      [{pid, ref}] ->
+        true = Process.demonitor(ref)
+        true = :ets.delete(monitors, pid)
+        new_state = %{state | workers: [new_worker(worker_sup) | workers]}
+        {:noreply, new_state}
+      [{}] ->
+        {:noreply, state}
+    end
+  end
 
   def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
     case workers do
