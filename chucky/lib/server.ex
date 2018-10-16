@@ -27,5 +27,4 @@ defmodule Chucky.Server do
                  |> List.first
   {:reply, random_fact, facts}
  end
-
 end
