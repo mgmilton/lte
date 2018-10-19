@@ -7,7 +7,6 @@ defmodule Chucky do
     children = [
       worker(Chucky.Server, [])
     ]
-
     case type do
       :normal ->
         Logger.info("Application is started on #{node()}")
